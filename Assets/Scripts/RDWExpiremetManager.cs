@@ -37,6 +37,8 @@ public class RDWExperimentManager : MonoBehaviour
     public TMP_Text zusatzSlider1ValueText;
     public TMP_Text zusatzSlider2ValueText;
     public GameObject finishButton;
+    public string[] likertLabels1 = { "gar nicht sicher", "wenig sicher", "neutral", "eher sicher", "sehr sicher" };
+    public string[] likertLabels2 = { "gar nicht", "wenig", "neutral", "eher", "sehr" };
 
     //Redirection
     public RedirectedWalkingManager redirectionManager;
@@ -215,11 +217,13 @@ public class RDWExperimentManager : MonoBehaviour
     // Slider
     public void UpdateSliderValueText1()
     {
-        zusatzSlider1ValueText.text = zusatzSlider1.value.ToString("0");
+        int idx = Mathf.Clamp(Mathf.RoundToInt(zusatzSlider1.value), 0, likertLabels1.Length - 1);
+        zusatzSlider1ValueText.text = likertLabels1[idx];
     }
     public void UpdateSliderValueText2()
     {
-        zusatzSlider2ValueText.text = zusatzSlider2.value.ToString("0");
+        int idx = Mathf.Clamp(Mathf.RoundToInt(zusatzSlider2.value), 0, likertLabels2.Length - 1);
+        zusatzSlider2ValueText.text = likertLabels2[idx];
     }
 
     public void OnFinishQuestionnaire()
