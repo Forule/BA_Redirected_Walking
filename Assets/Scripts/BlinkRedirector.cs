@@ -15,13 +15,11 @@ public class RedirectedWalkingManager : MonoBehaviour
     public float blinkThreshold = 0.3f;
     public float minBlinkInterval = 0.25f;
 
-   
-    [Header("Movement Redirection (optional)")]
-    public float moveRotationSpeed = 0f; 
+    [Header("Movement Redirection")]
+    public float walkingRotationAngle = 0f; // Grad pro Meter (Standard)
     public float minMoveDistance = 0.01f;
     private Vector3 lastPlayerPos;
 
-    
     private bool isWaitingForOpen = false;
     private float lastBlinkTime = 0f;
 
@@ -57,12 +55,12 @@ public class RedirectedWalkingManager : MonoBehaviour
             }
         }
 
-        // Walking Redirection
+        // Walking Redirection: Standard (Rotation pro zurückgelegtem Meter)
         float dist = Vector3.Distance(playerRig.position, lastPlayerPos);
 
-        if (moveRotationSpeed > 0 && dist > minMoveDistance)
+        if (Mathf.Abs(walkingRotationAngle) > 0f && dist > minMoveDistance)
         {
-            float rotationThisFrame = moveRotationSpeed * Time.deltaTime;
+            float rotationThisFrame = walkingRotationAngle * dist; // z.B. 2 Grad pro Meter
             RotateEnvironment(rotationThisFrame);
         }
 
@@ -86,3 +84,4 @@ public class RedirectedWalkingManager : MonoBehaviour
         blinkRotationAngle = angle;
     }
 }
+ 

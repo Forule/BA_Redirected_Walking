@@ -1,19 +1,15 @@
- using UnityEngine;
+using UnityEngine;
 using TMPro;
 using UnityEngine.UI;
 using System.Collections;
-using ResearchSweet.Transport;
-using ResearchSweet.Transport.Helpers;
-using ResearchSweet;
 using System.Collections.Generic;
-using ResearchSweet.Transport.Server;
 using System.Linq;
-
-
+using System.Text;
+using System.IO;
 
 public class RDWExperimentManager : MonoBehaviour
 {
-    //Player World
+    // Player World
     public GameObject xrRig;
     public Transform cameraOffset;
     public Transform mainCamera;
@@ -22,8 +18,15 @@ public class RDWExperimentManager : MonoBehaviour
     private List<GameObject> allCoins;
     private Vector3 startRigPosition, startWorldPosition;
     private Quaternion startRigRotation, startWorldRotation;
+    public TMP_InputField probandInputField;
 
-    //UI
+    // Experiment Modes & Phases
+    public enum RedirectionMode { Blink, Walking }
+    public enum ExperimentPhase { Staircase_Blink, Reverse_Blink, Staircase_Walking, Reverse_Walking, Finished }
+    private RedirectionMode currentMode = RedirectionMode.Blink;
+    private ExperimentPhase currentPhase = ExperimentPhase.Staircase_Blink;
+
+    // UI
     public GameObject startButtonObj;
     public GameObject overlayPanel;
     public TMP_Text overlayText;
@@ -31,7 +34,7 @@ public class RDWExperimentManager : MonoBehaviour
     public TMP_Text questionText;
     public TMP_Text feedbackText;
 
-    //Likert
+    // Likert
     public Slider zusatzSlider1;
     public Slider zusatzSlider2;
     public TMP_Text zusatzSlider1ValueText;
@@ -40,38 +43,55 @@ public class RDWExperimentManager : MonoBehaviour
     public string[] likertLabels1 = { "gar nicht sicher", "wenig sicher", "neutral", "eher sicher", "sehr sicher" };
     public string[] likertLabels2 = { "gar nicht", "wenig", "neutral", "eher", "sehr" };
 
-    //Redirection
+    // Redirection
     public RedirectedWalkingManager redirectionManager;
     public GameObject endCollider;
     public float minAngle = 0.5f;
     public float maxAngle = 5.0f;
-    public float currentAngle = 0.5f;
-    public float initialGain = 1.0f;
-    public float gainStep = 0.10f;
+    public float initialAngleBlink = 0.5f;
+    public float initialAngleWalking = 0.5f;
+    public float gainStep = 0.1f;
     public float minGain = 1.0f;
     public float maxGain = 2.0f;
-    public ResearchSweetInitComponent researchSweetInit;
+    public float walkingRotationAngle = 0f;
 
     private int blinkDirection = 1;
     private int currentTrial = 0;
     private int manipulatedRun;
     private bool experimentStarted = false;
-    private int? user2AFCChoice = null;
+    private int? user2AFCChoice = null; 
 
-    //Staircase & Reverse Staircase
-    public enum ExperimentPhase { Staircase, ReverseStaircase }
-    private ExperimentPhase currentPhase = ExperimentPhase.Staircase;
-    private float staircaseStep = 0.5f;  // Start-Gain
-    private float reverseStep = 2.0f;    // Reverse Staircase gain
+    // Staircase & Reverse Staircase
+    private float staircaseStep = 0.5f;
+    private float reverseStep = 2.0f;
     private int umkehrpunktCount = 0;
     private int lastAnswer = -1;         // 1 = richtig, 0 = falsch
     private List<float> jndList = new List<float>();
     private float userJND = 0f;
     private int trialInPhase = 0;
     private int minUmkehrpunkte = 6;
+    private int maxTrialsProPhase = 20;  // z.B. maximal 20 Trials pro Phase
+    private float currentAngle = 0.5f;
+
+    // Logging
+    public CSVLogger csvLogger;  // Zieh deinen Logger hier im Inspector rein!
+    public int probandID = 1;    // Setze diese ID dynamisch per UI oder Inspector
 
     void Start()
     {
+        Debug.Log("RDWexpoeriment Manager Start()");
+        if (csvLogger != null)
+        {
+            Debug.Log("CSV Logger gestartet");
+            csvLogger.InitCSV(new List<string>{
+                "timestamp", "probandID", "phase", "mode", "trialIndex", "manipulatedRun", "userChoice", "isCorrect", "currentAngle", "likert1", "likert2"
+            });
+        }
+        else
+        {
+            Debug.LogWarning("CSVLogger nicht zugewiesen!");
+        }
+
         // Start Position
         startRigPosition = xrRig.transform.position;
         startRigRotation = xrRig.transform.rotation;
@@ -87,7 +107,7 @@ public class RDWExperimentManager : MonoBehaviour
 
         if (endCollider != null) endCollider.SetActive(false);
 
-        //Likert Skalen
+        // Likert Skalen
         zusatzSlider1.gameObject.SetActive(false);
         zusatzSlider2.gameObject.SetActive(false);
         zusatzSlider1ValueText.gameObject.SetActive(false);
@@ -95,6 +115,94 @@ public class RDWExperimentManager : MonoBehaviour
         finishButton.SetActive(false);
         zusatzSlider1.value = 1;
         zusatzSlider2.value = 1;
+
+        // CSV-Header festlegen
+        
+    }
+    
+    public void SetProbandID(string input)
+    {
+        if (int.TryParse(input, out int value))
+            probandID = value;
+        else
+            probandID = 1; // oder Standardwert/falls ungültig
+    }
+    
+    public void OnStartButtonClicked()
+    {
+        SetProbandID(probandInputField.text);
+        startButtonObj.SetActive(false);
+        experimentStarted = true;
+        // Counterbalancing durch Teilnehmernummer (hier Dummy: gerade/ungerade)
+        // In der Praxis von UI oder extern setzen!
+        if (probandID % 2 == 0)
+        {
+            currentMode = RedirectionMode.Walking;
+            currentPhase = ExperimentPhase.Staircase_Walking;
+            currentAngle = initialAngleWalking;
+        }
+        else
+        {
+            currentMode = RedirectionMode.Blink;
+            currentPhase = ExperimentPhase.Staircase_Blink;
+            currentAngle = initialAngleBlink;
+        }
+        umkehrpunktCount = 0;
+        lastAnswer = -1;
+        jndList.Clear();
+        currentTrial = 0;
+        trialInPhase = 0;
+        StartCoroutine(ShowOverlayAndStartRun(1));
+    }
+
+    IEnumerator ShowOverlayAndStartRun(int runNumber)
+    {
+        overlayPanel.SetActive(true);
+        overlayText.text = $"Durchgang {runNumber} startet gleich...";
+        yield return new WaitForSeconds(2.5f);
+        overlayPanel.SetActive(false);
+        if (runNumber == 1) StartRun1();
+    }
+
+    void StartRun1()
+    {
+        if (endCollider != null) endCollider.SetActive(true);
+        manipulatedRun = Random.Range(1, 3);
+        if (manipulatedRun == 1)
+        {
+            blinkDirection = (Random.value > 0.5f) ? 1 : -1;
+            SetCurrentRedirection();
+        }
+        else
+        {
+            SetCurrentRedirection(0f);
+        }
+    }
+
+    void StartRun2()
+    {
+        if (manipulatedRun == 2)
+        {
+            blinkDirection = (Random.value > 0.5f) ? 1 : -1;
+            SetCurrentRedirection();
+        }
+        else
+        {
+            SetCurrentRedirection(0f);
+        }
+        StartCoroutine(Show2AFCPanel());
+    }
+
+    void SetCurrentRedirection(float overrideAngle = float.NaN)
+    {
+        if (currentMode == RedirectionMode.Blink)
+        {
+            redirectionManager.blinkRotationAngle = float.IsNaN(overrideAngle) ? currentAngle * blinkDirection : overrideAngle;
+        }
+        else if (currentMode == RedirectionMode.Walking)
+        {
+            redirectionManager.walkingRotationAngle = float.IsNaN(overrideAngle) ? currentAngle * blinkDirection : overrideAngle;
+        }
     }
 
     public void OnReachedEndOfRun1()
@@ -128,56 +236,6 @@ public class RDWExperimentManager : MonoBehaviour
         foreach (var coin in allCoins) coin.SetActive(true);
     }
 
-    public void OnStartButtonClicked()
-    {
-        startButtonObj.SetActive(false);
-        experimentStarted = true;
-        currentPhase = ExperimentPhase.Staircase; // Reset
-        umkehrpunktCount = 0;
-        lastAnswer = -1;
-        jndList.Clear();
-        currentTrial = 0;
-        StartCoroutine(ShowOverlayAndStartRun(1));
-    }
-
-    IEnumerator ShowOverlayAndStartRun(int runNumber)
-    {
-        overlayPanel.SetActive(true);
-        overlayText.text = $"Durchgang {runNumber} startet gleich...";
-        yield return new WaitForSeconds(5f);
-        overlayPanel.SetActive(false);
-        if (runNumber == 1) StartRun1();
-    }
-
-    void StartRun1()
-    {
-        if (endCollider != null) endCollider.SetActive(true);
-        manipulatedRun = Random.Range(1, 3);
-        if (manipulatedRun == 1)
-        {
-            blinkDirection = (Random.value > 0.5f) ? 1 : -1;
-            redirectionManager.blinkRotationAngle = currentAngle * blinkDirection;
-        }
-        else
-        {
-            redirectionManager.blinkRotationAngle = 0f;
-        }
-    }
-
-    void StartRun2()
-    {
-        if (manipulatedRun == 2)
-        {
-            blinkDirection = (Random.value > 0.5f) ? 1 : -1;
-            redirectionManager.blinkRotationAngle = currentAngle * blinkDirection;
-        }
-        else
-        {
-            redirectionManager.blinkRotationAngle = 0f;
-        }
-        StartCoroutine(Show2AFCPanel());
-    }
-
     IEnumerator Show2AFCPanel()
     {
         afcPanel.SetActive(true);
@@ -191,7 +249,6 @@ public class RDWExperimentManager : MonoBehaviour
         yield break;
     }
 
-    // AFC-Button Methoden
     public void OnChoose1()
     {
         user2AFCChoice = 1;
@@ -214,7 +271,6 @@ public class RDWExperimentManager : MonoBehaviour
         UpdateSliderValueText2();
     }
 
-    // Slider
     public void UpdateSliderValueText1()
     {
         int idx = Mathf.Clamp(Mathf.RoundToInt(zusatzSlider1.value), 0, likertLabels1.Length - 1);
@@ -247,8 +303,7 @@ public class RDWExperimentManager : MonoBehaviour
         bool correct = (choice == manipulatedRun);
         int currentAnswer = correct ? 1 : 0;
 
-        // STAIRCASE
-        if (currentPhase == ExperimentPhase.Staircase)
+        if (currentPhase == ExperimentPhase.Staircase_Blink || currentPhase == ExperimentPhase.Staircase_Walking)
         {
             if (lastAnswer != -1 && currentAnswer != lastAnswer)
             {
@@ -256,7 +311,6 @@ public class RDWExperimentManager : MonoBehaviour
                 jndList.Add(currentAngle);
                 Debug.Log("Umkehrpunkt #" + umkehrpunktCount + ", Schwelle: " + currentAngle);
             }
-
             if (correct)
                 currentAngle = Mathf.Max(minAngle, currentAngle - staircaseStep);
             else
@@ -269,12 +323,9 @@ public class RDWExperimentManager : MonoBehaviour
                 return;
             }
         }
-        // REVERSE STAIRCASE
-        else if (currentPhase == ExperimentPhase.ReverseStaircase)
+        else if (currentPhase == ExperimentPhase.Reverse_Blink || currentPhase == ExperimentPhase.Reverse_Walking)
         {
             trialInPhase++;
-            // gain halbieren
-
             if (trialInPhase % 3 == 0)
                 reverseStep = Mathf.Max(0.1f, reverseStep * 0.5f);
 
@@ -286,21 +337,25 @@ public class RDWExperimentManager : MonoBehaviour
 
         lastAnswer = currentAnswer;
 
-        // ResearchSweet
-        var rsClient = ResearchSweetHelpers.Client;
-
-        var eventData = new Dictionary<string, object>();
-        eventData.Add("trialIndex", currentTrial);
-        eventData.Add("manipulatedRun", manipulatedRun);
-        eventData.Add("userChoice", choice);
-        eventData.Add("isCorrect", correct);
-        eventData.Add("currentAngle", currentAngle);
-        eventData.Add("likert1", zusatz1);
-        eventData.Add("likert2", zusatz2);
-        eventData.Add("timestamp", System.DateTime.Now.ToString("o"));
-
-        rsClient.SendAsync<IEventControl>(x => x.SendEventAsync("TrialEvent", eventData));
-
+        // CSV-Logging
+        if (csvLogger != null)
+        {
+            var data = new Dictionary<string, object>
+            {
+                {"timestamp", System.DateTime.Now.ToString("o")},
+                {"probandID", probandID},
+                {"phase", currentPhase.ToString()},
+                {"mode", currentMode.ToString()},
+                {"trialIndex", currentTrial},
+                {"manipulatedRun", manipulatedRun},
+                {"userChoice", choice},
+                {"isCorrect", correct ? 1 : 0},
+                {"currentAngle", currentAngle},
+                {"likert1", zusatz1},
+                {"likert2", zusatz2}
+            };
+            csvLogger.LogTrial(data);
+        }
 
         currentTrial++;
         StartCoroutine(NextTrialAfterDelay());
@@ -308,8 +363,16 @@ public class RDWExperimentManager : MonoBehaviour
 
     void StarteReverseStaircase()
     {
-        currentPhase = ExperimentPhase.ReverseStaircase;
-        currentAngle = userJND;
+        if (currentPhase == ExperimentPhase.Staircase_Blink)
+        {
+            currentPhase = ExperimentPhase.Reverse_Blink;
+            currentAngle = userJND;
+        }
+        else if (currentPhase == ExperimentPhase.Staircase_Walking)
+        {
+            currentPhase = ExperimentPhase.Reverse_Walking;
+            currentAngle = userJND;
+        }
         reverseStep = 2.0f;
         trialInPhase = 0;
         overlayPanel.SetActive(true);
@@ -319,20 +382,40 @@ public class RDWExperimentManager : MonoBehaviour
 
     IEnumerator CloseOverlayAndNextTrial()
     {
-        yield return new WaitForSeconds(3f);
+        yield return new WaitForSeconds(2.0f);
         overlayPanel.SetActive(false);
         StartCoroutine(ShowOverlayAndStartRun(1));
     }
 
     IEnumerator NextTrialAfterDelay()
     {
-        yield return new WaitForSeconds(2f);
-        if (currentTrial >= 30)
+        yield return new WaitForSeconds(1.0f);
+
+        if (currentTrial >= maxTrialsProPhase)
         {
-            float meanJND = jndList.Count > 0 ? jndList.Average() : currentAngle;
-            overlayPanel.SetActive(true);
-            overlayText.text = $"Experiment beendet.\nJND: {meanJND:F2}°";
-            yield break;
+            if (currentPhase == ExperimentPhase.Reverse_Blink)
+            {
+                currentPhase = ExperimentPhase.Staircase_Walking;
+                currentMode = RedirectionMode.Walking;
+                currentTrial = 0;
+                umkehrpunktCount = 0;
+                lastAnswer = -1;
+                jndList.Clear();
+                currentAngle = initialAngleWalking;
+                overlayPanel.SetActive(true);
+                overlayText.text = "Walking-Redirection Test startet!";
+                yield return new WaitForSeconds(2f);
+                overlayPanel.SetActive(false);
+                StartCoroutine(ShowOverlayAndStartRun(1));
+                yield break;
+            }
+            if (currentPhase == ExperimentPhase.Reverse_Walking)
+            {
+                currentPhase = ExperimentPhase.Finished;
+                overlayPanel.SetActive(true);
+                overlayText.text = "Experiment beendet!";
+                yield break;
+            }
         }
         ResetWorldRelativeToRig();
         StartCoroutine(ShowOverlayAndStartRun(1));
