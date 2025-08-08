@@ -59,7 +59,7 @@ public class RDWExperimentManager : MonoBehaviour
     private int currentTrial = 0;
     private int manipulatedRun;
     private bool experimentStarted = false;
-    private int? user2AFCChoice = null; 
+    private int? user2AFCChoice = null;
 
     // Staircase & Reverse Staircase
     private float staircaseStep = 0.5f;
@@ -117,9 +117,9 @@ public class RDWExperimentManager : MonoBehaviour
         zusatzSlider2.value = 1;
 
         // CSV-Header festlegen
-        
+
     }
-    
+
     public void SetProbandID(string input)
     {
         if (int.TryParse(input, out int value))
@@ -127,7 +127,7 @@ public class RDWExperimentManager : MonoBehaviour
         else
             probandID = 1; // oder Standardwert/falls ungültig
     }
-    
+
     public void OnStartButtonClicked()
     {
         SetProbandID(probandInputField.text);
@@ -420,4 +420,4 @@ public class RDWExperimentManager : MonoBehaviour
         ResetWorldRelativeToRig();
         StartCoroutine(ShowOverlayAndStartRun(1));
     }
-}
+}
