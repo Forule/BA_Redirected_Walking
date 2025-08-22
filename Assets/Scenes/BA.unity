@@ -3887,8 +3887,8 @@ MonoBehaviour:
   maxTotalTrialsPerBlock: 30
   useConvergenceStop: 1
   convWindow: 4
-  convRangeBlinkDeg: 0.2
-  convRangeWalkDegPerM: 0.2
+  convRangeBlinkDeg: 0.25
+  convRangeWalkDegPerM: 0.25
   catchTrialProbability: 0.15
   overlayDelaySec: 0.8
   floorSnapper: {fileID: 40919615}
@@ -6765,6 +6765,7 @@ MonoBehaviour:
   blinkThreshold: 0.7
   minBlinkInterval: 0.5
   blackoutOnBlinkEvenIfNoRotation: 1
+  postBlinkBlackoutMs: 200
   walkingRotationAngle: 0
   minMoveDistance: 0.01
   teleportThresholdMeters: 0.3

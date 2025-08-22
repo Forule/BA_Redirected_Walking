@@ -4,35 +4,36 @@ using Wave.Essence.Eye;
 public class RedirectedWalkingManager : MonoBehaviour
 {
     [Header("General Setup")]
-    // Der Kommentar wurde angepasst, um die Wichtigkeit dieser Variable zu betonen.
-    public Transform environmentRoot;       // Entscheidend für die Redirection!
-    public Transform xrRig;                 // dein XR Rig (Root des Players)
-    public Transform hmd;                   // HMD/MainCamera Transform (Pivot)
+    public Transform environmentRoot;   // Muss NICHT Parent des XR-Rigs sein
+    public Transform xrRig;
+    public Transform hmd;               // HMD/MainCamera Transform
     public BlinkBlackout blackout;
 
-    // ... (der Rest der Variablendeklaration bleibt unverändert)
-
     [Header("Blink Redirection (° pro Blink)")]
-    [Tooltip("Bereits signierter Winkel in Grad pro Blink (vom ExperimentManager gesetzt).")]
+    [Tooltip("Signierter Winkel in Grad pro Blink (vom ExperimentManager gesetzt).")]
     public float blinkRotationAngle = 0f;
-    [Range(0f, 1f)] public float blinkThreshold = 0.3f;
-    public float minBlinkInterval = 0.25f;
+    [Range(0f, 1f)] public float blinkThreshold = 0.3f; // Openness-Schwelle (0=zu,1=offen)
+    public float minBlinkInterval = 0.25f;              // Debounce (Sek.)
 
-    [Header("Blackout-Option")]
-    [Tooltip("Auch im neutralen/Waking-Run Blackout beim Blink zeigen, selbst wenn blinkRotationAngle = 0.")]
+    [Header("Blackout-Optionen")]
+    [Tooltip("Auch bei blinkRotationAngle = 0 Blackout nach dem Blink zeigen.")]
     public bool blackoutOnBlinkEvenIfNoRotation = true;
+    [Tooltip("Dauer Blackout NACH dem Blink (ms).")]
+    public int postBlinkBlackoutMs = 200;
 
     [Header("Walking Redirection (° pro Meter)")]
-    [Tooltip("Bereits signierter Gain in Grad pro realem Meter (vom ExperimentManager gesetzt).")]
-    public float walkingRotationAngle = 0f;      // °/m
-    public float minMoveDistance = 0.01f;        // Rauschen filtern
-    public float teleportThresholdMeters = 0.3f; // Sprünge (Reset) ignorieren
+    [Tooltip("Signierter Gain in Grad pro realem Meter (vom ExperimentManager gesetzt).")]
+    public float walkingRotationAngle = 0f;     // °/m
+    public float minMoveDistance = 0.01f;       // Bewegungsrauschen filtern
+    public float teleportThresholdMeters = 0.3f;// Resets/Sprünge ignorieren
 
     // intern
     private Vector3 lastHmdPosXZ;
+    private bool prevIsBlink = false;
     private bool isWaitingForOpen = false;
     private float lastBlinkTime = 0f;
-    private bool prevIsBlink = false;
+
+    private bool runActive = false;             // wird in BeginRunTracking gesetzt
 
     public bool redirectionEnabled { get; private set; } = true;
 
@@ -47,14 +48,12 @@ public class RedirectedWalkingManager : MonoBehaviour
         if (!hmd && Camera.main) hmd = Camera.main.transform;
     }
 
-    void Start()
-    {
-        SyncLastHmdPos();
-    }
+    void Start() { SyncLastHmdPos(); }
 
     void Update()
     {
-        if (!redirectionEnabled)
+        // Erst laufen lassen, wenn ExperimentManager den Run wirklich gestartet hat
+        if (!redirectionEnabled || !runActive)
         {
             SyncLastHmdPos();
             return;
@@ -64,20 +63,59 @@ public class RedirectedWalkingManager : MonoBehaviour
         HandleWalkingRedirection();
     }
 
+    // --- Blink: Rotation im Blink, Blackout NACH dem Blink ---
     void HandleBlinkRedirection()
     {
-        // ... (Dieser Abschnitt bleibt komplett unverändert)
-        if (EyeManager.Instance == null || !EyeManager.Instance.IsEyeTrackingAvailable()) { /*...*/ return; }
-        // ...
-        if (!Mathf.Approximately(blinkRotationAngle, 0f))
+        var em = EyeManager.Instance;
+        if (em == null || !em.IsEyeTrackingAvailable())
         {
-            // NAME ZURÜCKGEÄNDERT: Ruft wieder die Funktion mit dem alten Namen auf.
-            ApplyRigYaw(blinkRotationAngle);
-            BlinkAppliedCount++;
+            prevIsBlink = false;
+            return;
         }
-        // ...
+
+        float leftOpen, rightOpen;
+        bool leftValid = em.GetLeftEyeOpenness(out leftOpen);
+        bool rightValid = em.GetRightEyeOpenness(out rightOpen);
+        if (!leftValid || !rightValid)
+        {
+            prevIsBlink = false;
+            return;
+        }
+
+        bool isBlink = (leftOpen < blinkThreshold) && (rightOpen < blinkThreshold);
+        float now = Time.time;
+
+        // Rising edge (Blink beginnt)
+        if (!prevIsBlink && isBlink)
+        {
+            BlinkDetectedCount++;
+            lastBlinkTime = now;
+            // Rotation EINMAL zu Beginn des Blinks -> komplett verdeckt
+            if (!Mathf.Approximately(blinkRotationAngle, 0f))
+            {
+                ApplyRigYaw(blinkRotationAngle); // ° pro Blink (signed)
+                BlinkAppliedCount++;
+            }
+        }
+
+        // Falling edge (Blink endet) -> kurzer Blackout danach (Debounce beachtet)
+        if (prevIsBlink && !isBlink && (now - lastBlinkTime) >= minBlinkInterval)
+        {
+            if (blackout != null && (blackoutOnBlinkEvenIfNoRotation || !Mathf.Approximately(blinkRotationAngle, 0f)))
+            {
+                // Unterstütze beide möglichen APIs
+                // Prefer: ShowFor(ms); Fallback: TriggerBlackout()
+                try { blackout.SendMessage("ShowFor", postBlinkBlackoutMs, SendMessageOptions.DontRequireReceiver); }
+                catch { /* ignored */ }
+                try { blackout.SendMessage("TriggerBlackout", SendMessageOptions.DontRequireReceiver); }
+                catch { /* ignored */ }
+            }
+        }
+
+        prevIsBlink = isBlink;
     }
 
+    // --- Walking: kontinuierliche Rotation proportional zur Wegstrecke ---
     void HandleWalkingRedirection()
     {
         if (!hmd) return;
@@ -85,25 +123,26 @@ public class RedirectedWalkingManager : MonoBehaviour
         Vector3 nowXZ = new Vector3(hmd.position.x, 0f, hmd.position.z);
         float dist = Vector3.Distance(nowXZ, lastHmdPosXZ);
 
+        // Teleports/Resets nicht einrechnen
         if (dist > teleportThresholdMeters)
         {
             lastHmdPosXZ = nowXZ;
             return;
         }
 
-        if (!Mathf.Approximately(walkingRotationAngle, 0f) && dist > minMoveDistance)
+        if (dist > minMoveDistance)
         {
-            float deltaYaw = walkingRotationAngle * dist;
-
-            // NAME ZURÜCKGEÄNDERT: Ruft wieder die Funktion mit dem alten Namen auf.
-            ApplyRigYaw(deltaYaw);
-
+            if (!Mathf.Approximately(walkingRotationAngle, 0f))
+            {
+                float deltaYaw = walkingRotationAngle * dist; // (deg/m) * m
+                ApplyRigYaw(deltaYaw);
+            }
+            // IMMER aktualisieren (auch wenn kein Gain anliegt)
             lastHmdPosXZ = nowXZ;
         }
     }
 
-    // -------- NAME ZURÜCKGEÄNDERT, ABER LOGIK BLEIBT KORREKT --------
-    // Die Funktion heißt wieder "ApplyRigYaw", rotiert aber weiterhin die Welt.
+    // Welt um den HMD-Pivot drehen (Rig bleibt tracking-geführt)
     void ApplyRigYaw(float deltaYawDeg)
     {
         if (!environmentRoot)
@@ -111,26 +150,38 @@ public class RedirectedWalkingManager : MonoBehaviour
             Debug.LogError("RedirectedWalkingManager: EnvironmentRoot ist nicht zugewiesen! Redirection kann nicht angewendet werden.");
             return;
         }
-
-        Vector3 pivot = hmd.position;
-
-        // Die entscheidende Logik bleibt: Rotiere die Welt UM den Spieler.
+        Vector3 pivot = hmd ? hmd.position : Vector3.zero;
         environmentRoot.RotateAround(pivot, Vector3.up, deltaYawDeg);
     }
 
-    // -------- API für ExperimentManager (unverändert) --------
-    public void SetBlinkRotationAngle(float angleDegSigned) { blinkRotationAngle = angleDegSigned; }
-    public void SetWalkingRotationAngle(float degPerMeterSigned) { walkingRotationAngle = degPerMeterSigned; }
+    // -------- API für ExperimentManager --------
+    public void SetBlinkRotationAngle(float angleDegSigned)
+    {
+        blinkRotationAngle = angleDegSigned;
+        // Mischbetrieb verhindern
+        if (!Mathf.Approximately(angleDegSigned, 0f))
+            walkingRotationAngle = 0f;
+    }
+
+    public void SetWalkingRotationAngle(float degPerMeterSigned)
+    {
+        walkingRotationAngle = degPerMeterSigned;
+        // Mischbetrieb verhindern
+        if (!Mathf.Approximately(degPerMeterSigned, 0f))
+            blinkRotationAngle = 0f;
+    }
 
     public void PauseRedirection()
     {
         redirectionEnabled = false;
-        // ... (Rest der Funktion unverändert)
+        runActive = false; // Run pausiert
     }
 
     public void ResumeRedirection()
     {
         redirectionEnabled = true;
+        // Noch NICHT runActive setzen – das macht BeginRunTracking(),
+        // damit ein vorgezogenes Resume (dein aktueller Flow) keine Effekte hat.
         SyncLastHmdPos();
     }
 
@@ -139,10 +190,13 @@ public class RedirectedWalkingManager : MonoBehaviour
         BlinkDetectedCount = 0;
         BlinkAppliedCount = 0;
         runBlinkStartTime = Time.time;
-        isWaitingForOpen = false;
+
         prevIsBlink = false;
+        isWaitingForOpen = false;
         lastBlinkTime = Time.time;
+
         SyncLastHmdPos();
+        runActive = true; // erst jetzt darf Update() rotieren
     }
 
     public void EndRunTracking(out int detected, out int applied, out float seconds)
@@ -150,14 +204,16 @@ public class RedirectedWalkingManager : MonoBehaviour
         detected = BlinkDetectedCount;
         applied = BlinkAppliedCount;
         seconds = Mathf.Max(0f, Time.time - runBlinkStartTime);
+        runActive = false;
     }
 
     public void NotifyWorldReset()
     {
         SyncLastHmdPos();
-        isWaitingForOpen = false;
         prevIsBlink = false;
+        isWaitingForOpen = false;
         lastBlinkTime = Time.time;
+        // runActive bleibt unverändert
     }
 
     void SyncLastHmdPos()
