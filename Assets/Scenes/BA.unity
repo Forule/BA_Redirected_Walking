@@ -3875,20 +3875,20 @@ MonoBehaviour:
   maxBlinkAngleDeg: 20
   initialBlinkAngleDeg: 8
   coarseStepBlinkDeg: 2
-  minFineStepBlinkDeg: 0.1
+  minFineStepBlinkDeg: 0.25
   minWalkingGainDegPerMeter: 0.0025
   maxWalkingGainDegPerMeter: 20
   initialWalkingGainDegPerMeter: 10
-  coarseStepWalkingDegPerM: 2
-  minFineStepWalkingDegPerMeter: 0.1
+  coarseStepWalkingDegPerM: 3
+  minFineStepWalkingDegPerMeter: 0.25
   fineStartStepFactor: 0.25
-  coarseMinReversals: 2
-  fineMaxReversals: 6
+  coarseMinReversals: 3
+  fineMaxReversals: 5
   maxTotalTrialsPerBlock: 30
   useConvergenceStop: 1
-  convWindow: 4
-  convRangeBlinkDeg: 0.25
-  convRangeWalkDegPerM: 0.25
+  convWindow: 3
+  convRangeBlinkDeg: 0.75
+  convRangeWalkDegPerM: 0.75
   catchTrialProbability: 0.15
   overlayDelaySec: 0.8
   floorSnapper: {fileID: 40919615}
@@ -6284,7 +6284,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   blackoutPanel: {fileID: 1713516582}
-  blackoutDuration: 0.15
+  blackoutDuration: 0.4
 --- !u!224 &816852334 stripped
 RectTransform:
   m_CorrespondingSourceObject: {fileID: 22457152, guid: 67117722a812a2e46ab8cb8eafbf5f5e, type: 3}
@@ -6763,9 +6763,9 @@ MonoBehaviour:
   blackout: {fileID: 806190927}
   blinkRotationAngle: 0
   blinkThreshold: 0.7
-  minBlinkInterval: 0.5
+  minBlinkInterval: 2
   blackoutOnBlinkEvenIfNoRotation: 1
-  postBlinkBlackoutMs: 200
+  postBlinkBlackoutMs: 0
   walkingRotationAngle: 0
   minMoveDistance: 0.01
   teleportThresholdMeters: 0.3

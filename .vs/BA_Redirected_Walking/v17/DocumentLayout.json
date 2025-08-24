@@ -1,14 +1,25 @@
 {
   "Version": 1,
-  "WorkspaceRootPath": "C:\\Users\\janmu\\Desktop\\BA_Redirected_Walking\\",
+  "WorkspaceRootPath": "C:\\Users\\janmu\\Documents\\GitHub\\BA_Redirected_Walking\\",
   "Documents": [
     {
-      "AbsoluteMoniker": "D:0:0:{533E6653-CB4C-CC77-9A0A-79CAD5EEC46E}|Assembly-CSharp.csproj|c:\\users\\janmu\\desktop\\ba_redirected_walking\\assets\\davepixel\\readme!.rtf.txt||{8B382828-6202-11D1-8870-0000F87579D2}",
+      "AbsoluteMoniker": "D:0:0:{533E6653-CB4C-CC77-9A0A-79CAD5EEC46E}|Assembly-CSharp.csproj|c:\\users\\janmu\\documents\\github\\ba_redirected_walking\\assets\\scripts\\rdwexpiremetmanager.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{533E6653-CB4C-CC77-9A0A-79CAD5EEC46E}|Assembly-CSharp.csproj|solutionrelative:assets\\scripts\\rdwexpiremetmanager.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{533E6653-CB4C-CC77-9A0A-79CAD5EEC46E}|Assembly-CSharp.csproj|C:\\Users\\janmu\\Documents\\GitHub\\BA_Redirected_Walking\\assets\\scripts\\blinkredirector.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{533E6653-CB4C-CC77-9A0A-79CAD5EEC46E}|Assembly-CSharp.csproj|solutionrelative:assets\\scripts\\blinkredirector.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{533E6653-CB4C-CC77-9A0A-79CAD5EEC46E}|Assembly-CSharp.csproj|C:\\Users\\janmu\\Documents\\GitHub\\BA_Redirected_Walking\\assets\\scripts\\blinkblackout.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{533E6653-CB4C-CC77-9A0A-79CAD5EEC46E}|Assembly-CSharp.csproj|solutionrelative:assets\\scripts\\blinkblackout.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{533E6653-CB4C-CC77-9A0A-79CAD5EEC46E}|Assembly-CSharp.csproj|C:\\Users\\janmu\\Documents\\GitHub\\BA_Redirected_Walking\\assets\\davepixel\\readme!.rtf.txt||{8B382828-6202-11D1-8870-0000F87579D2}",
       "RelativeMoniker": "D:0:0:{533E6653-CB4C-CC77-9A0A-79CAD5EEC46E}|Assembly-CSharp.csproj|solutionrelative:assets\\davepixel\\readme!.rtf.txt||{8B382828-6202-11D1-8870-0000F87579D2}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{533E6653-CB4C-CC77-9A0A-79CAD5EEC46E}|Assembly-CSharp.csproj|c:\\users\\janmu\\desktop\\ba_redirected_walking\\assets\\coincollider.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{533E6653-CB4C-CC77-9A0A-79CAD5EEC46E}|Assembly-CSharp.csproj|solutionrelative:assets\\coincollider.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\janmu\\Desktop\\BA_Redirected_Walking\\Assets\\CoinCollider.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     }
   ],
   "DocumentGroupContainers": [
@@ -18,37 +29,73 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": 0,
+          "SelectedChildIndex": 1,
           "Children": [
+            {
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{cce594b6-0c39-4442-ba28-10c64ac7e89f}"
+            },
             {
               "$type": "Document",
               "DocumentIndex": 0,
-              "Title": "ReadMe!.rtf.txt",
-              "DocumentMoniker": "C:\\Users\\janmu\\Desktop\\BA_Redirected_Walking\\Assets\\DavePixel\\ReadMe!.rtf.txt",
-              "RelativeDocumentMoniker": "Assets\\DavePixel\\ReadMe!.rtf.txt",
-              "ToolTip": "C:\\Users\\janmu\\Desktop\\BA_Redirected_Walking\\Assets\\DavePixel\\ReadMe!.rtf.txt",
-              "RelativeToolTip": "Assets\\DavePixel\\ReadMe!.rtf.txt",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003109|",
-              "WhenOpened": "2025-06-21T13:14:41.082Z",
+              "Title": "RDWExpiremetManager.cs",
+              "DocumentMoniker": "C:\\Users\\janmu\\Documents\\GitHub\\BA_Redirected_Walking\\Assets\\Scripts\\RDWExpiremetManager.cs",
+              "RelativeDocumentMoniker": "Assets\\Scripts\\RDWExpiremetManager.cs",
+              "ToolTip": "C:\\Users\\janmu\\Documents\\GitHub\\BA_Redirected_Walking\\Assets\\Scripts\\RDWExpiremetManager.cs",
+              "RelativeToolTip": "Assets\\Scripts\\RDWExpiremetManager.cs",
+              "ViewState": "AgIAAM4BAAAAAAAAAAAuwKMBAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-08-22T17:53:49.427Z",
               "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 2,
+              "Title": "BlinkBlackout.cs",
+              "DocumentMoniker": "C:\\Users\\janmu\\Documents\\GitHub\\BA_Redirected_Walking\\Assets\\Scripts\\BlinkBlackout.cs",
+              "RelativeDocumentMoniker": "Assets\\Scripts\\BlinkBlackout.cs",
+              "ToolTip": "C:\\Users\\janmu\\Documents\\GitHub\\BA_Redirected_Walking\\Assets\\Scripts\\BlinkBlackout.cs",
+              "RelativeToolTip": "Assets\\Scripts\\BlinkBlackout.cs",
+              "ViewState": "AgIAABgAAAAAAAAAAAAYwCcAAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-08-22T15:39:43.1Z"
             },
             {
               "$type": "Document",
               "DocumentIndex": 1,
-              "Title": "CoinCollider.cs",
-              "DocumentMoniker": "C:\\Users\\janmu\\Desktop\\BA_Redirected_Walking\\Assets\\CoinCollider.cs",
-              "RelativeDocumentMoniker": "Assets\\CoinCollider.cs",
-              "ToolTip": "C:\\Users\\janmu\\Desktop\\BA_Redirected_Walking\\Assets\\CoinCollider.cs",
-              "RelativeToolTip": "Assets\\CoinCollider.cs",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAAA4AAAAjAAAAAAAAAA==",
+              "Title": "BlinkRedirector.cs",
+              "DocumentMoniker": "C:\\Users\\janmu\\Documents\\GitHub\\BA_Redirected_Walking\\Assets\\Scripts\\BlinkRedirector.cs",
+              "RelativeDocumentMoniker": "Assets\\Scripts\\BlinkRedirector.cs",
+              "ToolTip": "C:\\Users\\janmu\\Documents\\GitHub\\BA_Redirected_Walking\\Assets\\Scripts\\BlinkRedirector.cs",
+              "RelativeToolTip": "Assets\\Scripts\\BlinkRedirector.cs",
+              "ViewState": "AgIAAE0AAAAAAAAAAAAcwM8AAAAFAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-06-21T13:09:09.494Z",
+              "WhenOpened": "2025-08-22T15:36:04.754Z",
               "EditorCaption": ""
             },
             {
-              "$type": "Bookmark",
-              "Name": "ST:0:0:{cce594b6-0c39-4442-ba28-10c64ac7e89f}"
+              "$type": "Document",
+              "DocumentIndex": 3,
+              "Title": "ReadMe!.rtf.txt",
+              "DocumentMoniker": "C:\\Users\\janmu\\Documents\\GitHub\\BA_Redirected_Walking\\Assets\\DavePixel\\ReadMe!.rtf.txt",
+              "RelativeDocumentMoniker": "Assets\\DavePixel\\ReadMe!.rtf.txt",
+              "ToolTip": "C:\\Users\\janmu\\Documents\\GitHub\\BA_Redirected_Walking\\Assets\\DavePixel\\ReadMe!.rtf.txt",
+              "RelativeToolTip": "Assets\\DavePixel\\ReadMe!.rtf.txt",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003109|",
+              "WhenOpened": "2025-06-21T13:14:41.082Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 4,
+              "Title": "CoinCollider.cs",
+              "DocumentMoniker": "C:\\Users\\janmu\\Desktop\\BA_Redirected_Walking\\Assets\\CoinCollider.cs",
+              "RelativeDocumentMoniker": "..\\..\\..\\Desktop\\BA_Redirected_Walking\\Assets\\CoinCollider.cs",
+              "ToolTip": "C:\\Users\\janmu\\Desktop\\BA_Redirected_Walking\\Assets\\CoinCollider.cs",
+              "RelativeToolTip": "..\\..\\..\\Desktop\\BA_Redirected_Walking\\Assets\\CoinCollider.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAA4AAAAjAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-06-21T13:09:09.494Z"
             }
           ]
         }

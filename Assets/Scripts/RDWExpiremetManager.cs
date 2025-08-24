@@ -172,6 +172,19 @@ public class RDWExperimentManager : MonoBehaviour
         else BeginBlinkBlockFresh();
     }
 
+    void EndCurrentBlock()
+    {
+        if (currentMode == RedirectionMode.Blink)
+        {
+            blinkBlockDone = true;
+            if (!walkingBlockDone) BeginWalkingBlockFresh(); else FinishExperiment();
+        }
+        else
+        {
+            walkingBlockDone = true;
+            if (!blinkBlockDone) BeginBlinkBlockFresh(); else FinishExperiment();
+        }
+    }
     IEnumerator ShowOverlayAndStartRun(int runNumber)
     {
         overlayPanel.SetActive(true);
@@ -339,46 +352,51 @@ public class RDWExperimentManager : MonoBehaviour
     {
         yield return new WaitForSeconds(1.0f);
 
-        bool isCoarse = (currentPhase == ExperimentPhase.Coarse);
-        bool blockFinished = false;
+        // * Harte Obergrenze gilt für Coarse+Fine zusammen *
+        if (trialsInCurrentBlock >= maxTotalTrialsPerBlock)
+        {
+            EndCurrentBlock();
+            yield break;
+        }
 
+        bool isCoarse = (currentPhase == ExperimentPhase.Coarse);
+
+        // --- Übergang in Fine, sobald Coarse-Kriterium erfüllt ---
         if (isCoarse && coarseReversalCount >= coarseMinReversals)
         {
             StartFinePhase();
             yield break;
         }
 
+        // --- Feinphase: reguläre Stop-Kriterien ---
         if (!isCoarse)
         {
             if (useConvergenceStop) CheckConvergence();
-            if (fineReversalCount >= fineMaxReversals || finePhaseConverged || trialsInCurrentBlock >= maxTotalTrialsPerBlock)
+            bool blockFinished =
+                fineReversalCount >= fineMaxReversals ||
+                finePhaseConverged;
+
+            if (blockFinished)
             {
-                blockFinished = true;
+                EndCurrentBlock();
+                yield break;
             }
         }
 
-        if (blockFinished)
-        {
-            if (currentMode == RedirectionMode.Blink)
-            {
-                blinkBlockDone = true;
-                if (!walkingBlockDone) BeginWalkingBlockFresh(); else FinishExperiment();
-            }
-            else
-            {
-                walkingBlockDone = true;
-                if (!blinkBlockDone) BeginBlinkBlockFresh(); else FinishExperiment();
-            }
-        }
-        else
-        {
-            ResetWorldRelativeToRig();
-            StartCoroutine(ShowOverlayAndStartRun(1));
-        }
+        // --- weiter mit nächstem Trial ---
+        ResetWorldRelativeToRig();
+        StartCoroutine(ShowOverlayAndStartRun(1));
     }
 
     void StartFinePhase()
     {
+        // * Falls Cap schon erreicht, Block sofort beenden *
+        if (trialsInCurrentBlock >= maxTotalTrialsPerBlock)
+        {
+            EndCurrentBlock();
+            return;
+        }
+
         currentPhase = ExperimentPhase.Fine;
         float seedValue;
 
@@ -386,14 +404,12 @@ public class RDWExperimentManager : MonoBehaviour
         {
             seedValue = (coarseReversals.Count > 0) ? coarseReversals.Average() : initialBlinkAngleDeg;
             currentBlinkAngleDeg = Mathf.Clamp(seedValue, minBlinkAngleDeg, maxBlinkAngleDeg);
-
             currentFineStep = seedValue * fineStartStepFactor;
         }
-        else // Walking
+        else
         {
             seedValue = (coarseReversals.Count > 0) ? coarseReversals.Average() : initialWalkingGainDegPerMeter;
             currentWalkingGainDegPerMeter = Mathf.Clamp(seedValue, minWalkingGainDegPerMeter, maxWalkingGainDegPerMeter);
-
             currentFineStep = seedValue * fineStartStepFactor;
         }
 
