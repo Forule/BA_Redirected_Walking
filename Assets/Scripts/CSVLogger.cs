@@ -1,58 +1,123 @@
-using System.IO;
-using UnityEngine;
+using System;
 using System.Collections.Generic;
+using System.IO;
+using System.Linq;
 using System.Text;
+using UnityEngine;
 
-/// <summary>
-/// CSV-Logger für VR-Experimente. Speichert jede Trial-Zeile als CSV im persistentDataPath.
-/// </summary>
 public class CSVLogger : MonoBehaviour
 {
-    private string filePath;
-    private bool fileInitialized = false;
-    private List<string> headers = null;
+    [Header("Output")]
+    [Tooltip("Ordnername im öffentlichen Download-Verzeichnis (/sdcard/Download/<Subfolder>).")]
+    public string publicDownloadSubfolder = "RDW";
+    [Tooltip("Auf Android direkt in den öffentlichen Download-Ordner schreiben.")]
+    public bool writeToPublicDownloadOnAndroid = true;
+    [Tooltip("CSV-Trennzeichen")]
+    public char separator = ';';
+
+    private string _filePath;
+    private List<string> _headerKeys = new List<string>();
+
+    public string GetFilePath() => _filePath;
 
     /// <summary>
-    /// Muss EINMALIG vor dem ersten Loggen aufgerufen werden.
+    /// Initialisiert die CSV. Wenn fileName leer ist, wird ein Zeitstempel verwendet.
     /// </summary>
-    /// <param name="headerFields">Reihenfolge der Variablennamen (Spaltenüberschriften)</param>
-    public void InitCSV(List<string> headerFields)
+    public void InitCSV(List<string> headerKeys, string fileName = null, char? sepOverride = null, bool? forcePublicDownload = null)
     {
-        Debug.Log("CSV intiialized");
-        headers = new List<string>(headerFields);
-        filePath = Path.Combine(Application.persistentDataPath, "RDW_ExperimentLog.csv");
-        fileInitialized = true;
-        Debug.Log("CSV-Logger-Pfad: " + Application.persistentDataPath);
+        if (headerKeys == null || headerKeys.Count == 0)
+            throw new ArgumentException("headerKeys must not be empty");
 
-        if (!File.Exists(filePath))
+        _headerKeys = new List<string>(headerKeys);
+
+        if (sepOverride.HasValue) separator = sepOverride.Value;
+        if (forcePublicDownload.HasValue) writeToPublicDownloadOnAndroid = forcePublicDownload.Value;
+
+        if (string.IsNullOrEmpty(fileName))
+            fileName = $"RDW_ExperimentLog_{DateTime.Now:yyyyMMdd_HHmmss}.csv";
+
+        string dir = GetBaseDirectory();
+        Directory.CreateDirectory(dir);
+
+        _filePath = Path.Combine(dir, fileName);
+
+        if (!File.Exists(_filePath))
         {
-            var headerLine = string.Join(",", headers);
-            File.WriteAllText(filePath, headerLine + "\n", Encoding.UTF8);
+            WriteLine(_headerKeys); // Header
         }
+
+        Debug.Log($"[CSVLogger] Writing to: {_filePath}");
     }
 
     /// <summary>
-    /// Fügt eine Zeile mit Daten an die CSV an. Die Keys im Dictionary müssen exakt zu den Headern passen!
+    /// Loggt eine Zeile. Keys werden in Header-Reihenfolge geschrieben.
+    /// Fehlende Keys => leere Felder.
     /// </summary>
     public void LogTrial(Dictionary<string, object> data)
     {
-        if (!fileInitialized || headers == null) return;
-
-        var line = new StringBuilder();
-        foreach (var key in headers)
+        if (string.IsNullOrEmpty(_filePath))
         {
-            object value = data.ContainsKey(key) ? data[key] : "";
-            string cell = value != null ? value.ToString().Replace("\"", "\"\"") : "";
-            if (cell.Contains(",")) cell = $"\"{cell}\"";
-            line.Append(cell + ",");
+            Debug.LogWarning("[CSVLogger] Not initialized. Call InitCSV() first.");
+            return;
         }
-        if (line.Length > 0) line.Length--;
 
-        File.AppendAllText(filePath, line + "\n", Encoding.UTF8);
+        IEnumerable<string> cols = _headerKeys.Select(k =>
+        {
+            object v;
+            if (data != null && data.TryGetValue(k, out v) && v != null)
+                return v.ToString();
+            return "";
+        });
+
+        WriteLine(cols);
     }
 
-    /// <summary>
-    /// Gibt den Dateipfad der aktuellen CSV-Datei zurück (Debugging).
-    /// </summary>
-    public string GetFilePath() => filePath;
+    // ---------- intern ----------
+
+    string GetBaseDirectory()
+    {
+#if UNITY_ANDROID && !UNITY_EDITOR
+        if (writeToPublicDownloadOnAndroid)
+        {
+            // öffentlicher Download-Ordner (sichtbar per USB/MTP)
+            string d = $"/sdcard/Download/{publicDownloadSubfolder}";
+            return d;
+        }
+        // fallback: App-spezifischer Bereich
+        return Application.persistentDataPath;
+#else
+        // Editor/Windows: lege neben persistentDataPath einen RDW-Ordner an
+        return Path.Combine(Application.persistentDataPath, publicDownloadSubfolder);
+#endif
+    }
+
+    void WriteLine(IEnumerable<string> cols)
+    {
+        // robust gegen Sharing Violations
+        using (var fs = new FileStream(_filePath, FileMode.Append, FileAccess.Write, FileShare.Read))
+        using (var sw = new StreamWriter(fs, new UTF8Encoding(true)))
+        {
+            bool first = true;
+            foreach (var c in cols)
+            {
+                if (!first) sw.Write(separator);
+                first = false;
+                sw.Write(Escape(c));
+            }
+            sw.WriteLine();
+        }
+    }
+
+    string Escape(string s)
+    {
+        if (string.IsNullOrEmpty(s)) return "";
+        // Newlines entfernen
+        s = s.Replace("\r", " ").Replace("\n", " ");
+        // wenn Trennzeichen oder Quotes enthalten -> CSV-quote
+        if (s.IndexOf(separator) >= 0 || s.Contains("\""))
+        {
+            s = "\"" + s.Replace("\"", "\"\"") + "\"";
+        }
+        return s;
+    }
 }

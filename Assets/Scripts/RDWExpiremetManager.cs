@@ -420,4 +420,4 @@ public class RDWExperimentManager : MonoBehaviour
         ResetWorldRelativeToRig();
         StartCoroutine(ShowOverlayAndStartRun(1));
     }
-}
+}

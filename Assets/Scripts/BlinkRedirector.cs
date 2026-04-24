@@ -1,87 +1,188 @@
 using UnityEngine;
 using Wave.Essence.Eye;
-using TMPro;
 
 public class RedirectedWalkingManager : MonoBehaviour
 {
+    #region Variablen Deklaration
     [Header("General Setup")]
     public Transform environmentRoot;
-    public Transform playerRig;
+    public Transform xrRig;
+    public Transform hmd;
     public BlinkBlackout blackout;
-    [HideInInspector] public int blinkDirection = 1;
 
-    [Header("Blink Redirection")]
-    public float blinkRotationAngle = 5f;
-    public float blinkThreshold = 0.3f;
+    [Header("Blink Redirection (° pro Blink)")]
+    public float blinkRotationAngle = 0f;
+    [Range(0f, 1f)] public float blinkThreshold = 0.3f;
     public float minBlinkInterval = 0.25f;
 
-    [Header("Movement Redirection")]
-    public float walkingRotationAngle = 0f; // Grad pro Meter (Standard)
+    [Header("Blackout-Optionen")]
+    public bool blackoutOnBlinkEvenIfNoRotation = true;
+
+    [Header("Walking Redirection (° pro Meter)")]
+    public float walkingRotationAngle = 0f;
     public float minMoveDistance = 0.01f;
-    private Vector3 lastPlayerPos;
+    public float teleportThresholdMeters = 0.3f;
 
+    // --- GEÄNDERT: Variablen für deine Blink-Logik ---
     private bool isWaitingForOpen = false;
-    private float lastBlinkTime = 0f;
+    private float lastBlinkTime = -999f;
+    private bool prevIsBlink = false; // Wird für die Zählung der Blinks benötigt
 
-    void Start()
+    private Vector3 lastHmdPosXZ;
+    private bool runActive = false;
+    public bool redirectionEnabled { get; private set; } = true;
+
+    public int BlinkDetectedCount { get; private set; }
+    public int BlinkAppliedCount { get; private set; }
+    private float runBlinkStartTime = 0f;
+    #endregion
+
+    void Awake()
     {
-        lastPlayerPos = playerRig.position;
+        if (!xrRig) xrRig = transform;
+        if (!hmd && Camera.main) hmd = Camera.main.transform;
     }
+
+    void Start() { SyncLastHmdPos(); }
 
     void Update()
     {
-        // Blink Redirection
-        if (EyeManager.Instance != null && EyeManager.Instance.IsEyeTrackingAvailable())
+        if (!redirectionEnabled || !runActive)
         {
-            float leftOpenness, rightOpenness;
-            bool leftValid = EyeManager.Instance.GetLeftEyeOpenness(out leftOpenness);
-            bool rightValid = EyeManager.Instance.GetRightEyeOpenness(out rightOpenness);
+            SyncLastHmdPos();
+            return;
+        }
+        HandleBlinkRedirection();
+        HandleWalkingRedirection();
+    }
 
-            if (leftValid && rightValid)
+    // --- GEÄNDERT: Deine bevorzugte Blink-Erkennungslogik ---
+    void HandleBlinkRedirection()
+    {
+        var em = EyeManager.Instance;
+        if (em == null || !em.IsEyeTrackingAvailable()) return;
+
+        bool isBlinkingNow = em.GetLeftEyeOpenness(out float l) && em.GetRightEyeOpenness(out float r) && l < blinkThreshold && r < blinkThreshold;
+
+        // Rising Edge für die Zählung der erkannten Blinks
+        if (!prevIsBlink && isBlinkingNow)
+        {
+            BlinkDetectedCount++;
+        }
+
+        // Aktions-Logik basierend auf deinem Code
+        if (!isWaitingForOpen && isBlinkingNow && (Time.time - lastBlinkTime > minBlinkInterval))
+        {
+            // Rotation anwenden, falls ein Winkel gesetzt ist
+            if (!Mathf.Approximately(blinkRotationAngle, 0f))
             {
-                bool isBlink = leftOpenness < blinkThreshold && rightOpenness < blinkThreshold;
-                if (!isWaitingForOpen && isBlink && (Time.time - lastBlinkTime) > minBlinkInterval)
-                {
-                    RotateEnvironment(blinkRotationAngle * blinkDirection);
-                    if (blackout != null)
-                        blackout.TriggerBlackout();
-                    lastBlinkTime = Time.time;
-                    isWaitingForOpen = true;
-                }
-                if (isWaitingForOpen && !isBlink)
-                {
-                    isWaitingForOpen = false;
-                }
+                ApplyWorldYaw(blinkRotationAngle);
+                BlinkAppliedCount++;
             }
+
+            // Blackout auslösen, falls gewünscht
+            if (blackout != null && (blackoutOnBlinkEvenIfNoRotation || !Mathf.Approximately(blinkRotationAngle, 0f)))
+            {
+                blackout.TriggerBlackout();
+            }
+
+            lastBlinkTime = Time.time;
+            isWaitingForOpen = true;
         }
 
-        // Walking Redirection: Standard (Rotation pro zurückgelegtem Meter)
-        float dist = Vector3.Distance(playerRig.position, lastPlayerPos);
-
-        if (Mathf.Abs(walkingRotationAngle) > 0f && dist > minMoveDistance)
+        // Zustand zurücksetzen, wenn Augen wieder offen sind
+        if (isWaitingForOpen && !isBlinkingNow)
         {
-            float rotationThisFrame = walkingRotationAngle * dist; // z.B. 2 Grad pro Meter
-            RotateEnvironment(rotationThisFrame);
+            isWaitingForOpen = false;
         }
 
-        lastPlayerPos = playerRig.position;
+        prevIsBlink = isBlinkingNow;
     }
 
-    // World Rotation
-    void RotateEnvironment(float angle)
+    void HandleWalkingRedirection()
     {
-        Vector3 playerPos = playerRig.position;
-        environmentRoot.RotateAround(playerPos, Vector3.up, angle);
+        if (!hmd) return;
+
+        Vector3 nowXZ = new Vector3(hmd.position.x, 0f, hmd.position.z);
+        float dist = Vector3.Distance(nowXZ, lastHmdPosXZ);
+
+        if (dist > teleportThresholdMeters)
+        {
+            lastHmdPosXZ = nowXZ;
+            return;
+        }
+
+        if (dist > minMoveDistance && !Mathf.Approximately(walkingRotationAngle, 0f))
+        {
+            float deltaYaw = walkingRotationAngle * dist;
+            ApplyWorldYaw(deltaYaw);
+        }
+
+        // Wichtig: Position nach jeder Prüfung aktualisieren, um korrekte Distanz zu gewährleisten
+        lastHmdPosXZ = nowXZ;
     }
 
-    // Set Direction and Gain
-    public void SetBlinkDirection(int direction)
+    void ApplyWorldYaw(float deltaYawDeg)
     {
-        blinkDirection = direction;
+        if (!environmentRoot)
+        {
+            Debug.LogError("RedirectedWalkingManager: EnvironmentRoot ist nicht zugewiesen!");
+            return;
+        }
+        Vector3 pivot = hmd ? hmd.position : xrRig.position;
+        environmentRoot.RotateAround(pivot, Vector3.up, deltaYawDeg);
     }
-    public void SetBlinkRotationAngle(float angle)
+
+    public void SetBlinkRotationAngle(float angleDegSigned) { blinkRotationAngle = angleDegSigned; }
+    public void SetWalkingRotationAngle(float degPerMeterSigned) { walkingRotationAngle = degPerMeterSigned; }
+
+    public void PauseRedirection()
     {
-        blinkRotationAngle = angle;
+        redirectionEnabled = false;
+        runActive = false;
+    }
+
+    public void ResumeRedirection()
+    {
+        redirectionEnabled = true;
+        SyncLastHmdPos();
+    }
+
+    // --- GEÄNDERT: Setzt jetzt die korrekten Blink-Variablen zurück ---
+    public void BeginRunTracking()
+    {
+        BlinkDetectedCount = 0;
+        BlinkAppliedCount = 0;
+        runBlinkStartTime = Time.time;
+
+        isWaitingForOpen = false;
+        prevIsBlink = false;
+        lastBlinkTime = -999f;
+
+        SyncLastHmdPos();
+        runActive = true;
+    }
+
+    public void EndRunTracking(out int detected, out int applied, out float seconds)
+    {
+        detected = BlinkDetectedCount;
+        applied = BlinkAppliedCount;
+        seconds = Mathf.Max(0f, Time.time - runBlinkStartTime);
+        runActive = false;
+    }
+
+    // --- GEÄNDERT: Setzt jetzt die korrekten Blink-Variablen zurück ---
+    public void NotifyWorldReset()
+    {
+        SyncLastHmdPos();
+        isWaitingForOpen = false;
+        prevIsBlink = false;
+        lastBlinkTime = -999f;
+    }
+
+    void SyncLastHmdPos()
+    {
+        if (hmd)
+            lastHmdPosXZ = new Vector3(hmd.position.x, 0f, hmd.position.z);
     }
 }
- 
