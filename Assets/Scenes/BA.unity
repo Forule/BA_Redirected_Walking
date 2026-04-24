@@ -3883,8 +3883,8 @@ MonoBehaviour:
   minFineStepWalkingDegPerMeter: 0.25
   fineStartStepFactor: 0.25
   coarseMinReversals: 3
-  fineMaxReversals: 5
-  maxTotalTrialsPerBlock: 30
+  fineMaxReversals: 4
+  maxTotalTrialsPerBlock: 25
   useConvergenceStop: 1
   convWindow: 3
   convRangeBlinkDeg: 0.75
@@ -6284,7 +6284,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   blackoutPanel: {fileID: 1713516582}
-  blackoutDuration: 0.4
+  blackoutDuration: 0.2
 --- !u!224 &816852334 stripped
 RectTransform:
   m_CorrespondingSourceObject: {fileID: 22457152, guid: 67117722a812a2e46ab8cb8eafbf5f5e, type: 3}
@@ -6763,9 +6763,8 @@ MonoBehaviour:
   blackout: {fileID: 806190927}
   blinkRotationAngle: 0
   blinkThreshold: 0.7
-  minBlinkInterval: 2
+  minBlinkInterval: 0.25
   blackoutOnBlinkEvenIfNoRotation: 1
-  postBlinkBlackoutMs: 0
   walkingRotationAngle: 0
   minMoveDistance: 0.01
   teleportThresholdMeters: 0.3

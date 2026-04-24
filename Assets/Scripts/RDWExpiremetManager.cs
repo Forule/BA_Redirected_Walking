@@ -46,8 +46,8 @@ public class RDWExperimentManager : MonoBehaviour
     public bool rotatePlayer180OnReset = true;
 
     // Likert Scales
-    public Slider zusatzSlider1;
-    public Slider zusatzSlider2;
+    public Slider zusatzSlider1; // Confidence
+    public Slider zusatzSlider2; // Discomfort/Artefakt
     public TMP_Text zusatzSlider1ValueText;
     public TMP_Text zusatzSlider2ValueText;
     public GameObject finishButton;
@@ -172,25 +172,21 @@ public class RDWExperimentManager : MonoBehaviour
         else BeginBlinkBlockFresh();
     }
 
-    void EndCurrentBlock()
-    {
-        if (currentMode == RedirectionMode.Blink)
-        {
-            blinkBlockDone = true;
-            if (!walkingBlockDone) BeginWalkingBlockFresh(); else FinishExperiment();
-        }
-        else
-        {
-            walkingBlockDone = true;
-            if (!blinkBlockDone) BeginBlinkBlockFresh(); else FinishExperiment();
-        }
-    }
     IEnumerator ShowOverlayAndStartRun(int runNumber)
     {
         overlayPanel.SetActive(true);
         overlayText.text = $"Durchgang {runNumber} startet gleich...";
 
+        // Warten, damit Physik-Updates nach einem Reset verarbeitet werden können
         yield return new WaitForSeconds(overlayDelaySec);
+
+        // Collider erst NACH der Wartezeit und dem Reset sicher aktivieren
+        if (endCollider != null)
+        {
+            endCollider.SetActive(true);
+            endCollider.GetComponent<EndCollider>()?.SetRunNumber(runNumber);
+        }
+
         if (redirectionManager != null) redirectionManager.ResumeRedirection();
         overlayPanel.SetActive(false);
 
@@ -200,10 +196,6 @@ public class RDWExperimentManager : MonoBehaviour
 
     void StartRun1()
     {
-        if (endCollider != null) endCollider.SetActive(true);
-
-        endCollider.GetComponent<EndCollider>()?.SetRunNumber(1);
-
         isCatchTrial = Random.value < catchTrialProbability;
 
         if (isCatchTrial)
@@ -222,9 +214,7 @@ public class RDWExperimentManager : MonoBehaviour
 
     void StartRun2()
     {
-        if (endCollider != null) endCollider.SetActive(true);
-
-        endCollider.GetComponent<EndCollider>()?.SetRunNumber(2);
+        // isCatchTrial wird aus Run1 übernommen und hier nicht neu gesetzt
         if (isCatchTrial)
         {
             SetCurrentRedirection(0f);
@@ -254,10 +244,6 @@ public class RDWExperimentManager : MonoBehaviour
     public void OnReachedEndOfRun1()
     {
         if (endCollider != null) endCollider.SetActive(false);
-        if (redirectionManager != null)
-        {
-            redirectionManager.PauseRedirection();
-        }
         ResetWorldRelativeToRig();
         StartCoroutine(ShowOverlayAndStartRun(2));
     }
@@ -352,51 +338,47 @@ public class RDWExperimentManager : MonoBehaviour
     {
         yield return new WaitForSeconds(1.0f);
 
-        // * Harte Obergrenze gilt für Coarse+Fine zusammen *
-        if (trialsInCurrentBlock >= maxTotalTrialsPerBlock)
-        {
-            EndCurrentBlock();
-            yield break;
-        }
-
         bool isCoarse = (currentPhase == ExperimentPhase.Coarse);
+        bool blockFinished = false;
 
-        // --- Übergang in Fine, sobald Coarse-Kriterium erfüllt ---
         if (isCoarse && coarseReversalCount >= coarseMinReversals)
         {
             StartFinePhase();
             yield break;
         }
 
-        // --- Feinphase: reguläre Stop-Kriterien ---
         if (!isCoarse)
         {
             if (useConvergenceStop) CheckConvergence();
-            bool blockFinished =
-                fineReversalCount >= fineMaxReversals ||
-                finePhaseConverged;
-
-            if (blockFinished)
+            if (fineReversalCount >= fineMaxReversals || finePhaseConverged || trialsInCurrentBlock >= maxTotalTrialsPerBlock)
             {
-                EndCurrentBlock();
-                yield break;
+                blockFinished = true;
             }
         }
 
-        // --- weiter mit nächstem Trial ---
-        ResetWorldRelativeToRig();
-        StartCoroutine(ShowOverlayAndStartRun(1));
+        if (blockFinished)
+        {
+            if (currentMode == RedirectionMode.Blink)
+            {
+                blinkBlockDone = true;
+                if (!walkingBlockDone) BeginWalkingBlockFresh(); else FinishExperiment();
+            }
+            else
+            {
+                walkingBlockDone = true;
+                if (!blinkBlockDone) BeginBlinkBlockFresh(); else FinishExperiment();
+            }
+        }
+        else
+        {
+            ResetWorldRelativeToRig();
+            StartCoroutine(ShowOverlayAndStartRun(1));
+        }
     }
 
     void StartFinePhase()
     {
-        // * Falls Cap schon erreicht, Block sofort beenden *
-        if (trialsInCurrentBlock >= maxTotalTrialsPerBlock)
-        {
-            EndCurrentBlock();
-            return;
-        }
-
+        ResetWorldRelativeToRig();
         currentPhase = ExperimentPhase.Fine;
         float seedValue;
 
@@ -404,12 +386,14 @@ public class RDWExperimentManager : MonoBehaviour
         {
             seedValue = (coarseReversals.Count > 0) ? coarseReversals.Average() : initialBlinkAngleDeg;
             currentBlinkAngleDeg = Mathf.Clamp(seedValue, minBlinkAngleDeg, maxBlinkAngleDeg);
+
             currentFineStep = seedValue * fineStartStepFactor;
         }
-        else
+        else // Walking
         {
             seedValue = (coarseReversals.Count > 0) ? coarseReversals.Average() : initialWalkingGainDegPerMeter;
             currentWalkingGainDegPerMeter = Mathf.Clamp(seedValue, minWalkingGainDegPerMeter, maxWalkingGainDegPerMeter);
+
             currentFineStep = seedValue * fineStartStepFactor;
         }
 
@@ -423,6 +407,7 @@ public class RDWExperimentManager : MonoBehaviour
 
     void BeginBlinkBlockFresh()
     {
+        ResetWorldRelativeToRig();
         currentMode = RedirectionMode.Blink;
         currentPhase = ExperimentPhase.Coarse;
         currentBlinkAngleDeg = initialBlinkAngleDeg;
@@ -432,6 +417,7 @@ public class RDWExperimentManager : MonoBehaviour
 
     void BeginWalkingBlockFresh()
     {
+        ResetWorldRelativeToRig();
         currentMode = RedirectionMode.Walking;
         currentPhase = ExperimentPhase.Coarse;
         currentWalkingGainDegPerMeter = initialWalkingGainDegPerMeter;
@@ -586,7 +572,7 @@ public class RDWExperimentManager : MonoBehaviour
         if (probandID < 1) probandID = maxProbandID;
         UpdateProbandIdDisplay();
     }
-    // --- NEU: Die fehlende Funktion für die Probanden-ID-Buttons ---
+
     public void UpdateProbandIdDisplay()
     {
         if (probandIdText != null)
